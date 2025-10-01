@@ -1,11 +1,13 @@
 from config import Config
-from utils import generate_cell_towers, generate_user_profiles
+from utils import generate_cell_towers, generate_user_profiles, create_summarise_fig
 
 from generators import CallGenerator, SocialStructure, AnomalyInjector
 from schemas import CDRSchema, UserSchema
 
 import random
 import matplotlib.pyplot as plt
+from datetime import datetime
+import json
 import pandas as pd
 import os
 import sys
@@ -15,8 +17,9 @@ fake = Faker('en_IN')
 
 BASE_DIR = sys.path[0]
 RAW_DIR = os.path.join(BASE_DIR, "dataset", "raw")
+PROCESSED_DIR = os.path.join(BASE_DIR, "dataset", "processed")
 
-def generate_dataset(output_path=RAW_DIR):
+def generate_dataset(timestamp):
     """
     Generate synthetic CDR dataset with user profiles, 
     social communities, anomalies, and summary plots.
@@ -27,7 +30,14 @@ def generate_dataset(output_path=RAW_DIR):
     Returns:
         pd.DataFrame: DataFrame of generated call records.
     """
-    
+
+    '''0'''
+
+    # Create folder name based on timestamp
+    run_folder = f"cdr_run_{timestamp}"
+    raw_run_dir = os.path.join(RAW_DIR, run_folder)
+    os.makedirs(raw_run_dir, exist_ok=True)
+
     '''_1_'''
 
     # Social Structure Definition
@@ -80,14 +90,16 @@ def generate_dataset(output_path=RAW_DIR):
     print(f"Normal calls: {len(calls_df[calls_df['is_anomaly'] == 0])}")
     print(f"Anomalous calls: {len(calls_df[calls_df['is_anomaly'] == 1])}")
     print("\nAnomaly type distribution:")
-    print(calls_df[calls_df['is_anomaly'] == 1]['anomaly_type'].value_counts())
+    anomaly_distribution = calls_df[calls_df['is_anomaly'] == 1]['anomaly_type'].value_counts().to_dict()
+    print(anomaly_distribution)
     
     '''_4_'''
 
     # Save main datasets
-    calls_df.to_csv(os.path.join(RAW_DIR, "cdr_call_records.csv"), index=False)
-    pd.DataFrame(user_profiles).to_csv(os.path.join(RAW_DIR, "cdr_user_profiles.csv"), index=False)
-    pd.DataFrame(cell_towers).to_csv(os.path.join(RAW_DIR, "cdr_cell_towers.csv"), index=False)
+    calls_df.to_csv(os.path.join(raw_run_dir, "cdr_call_records.csv"), index=False)
+    users_df = pd.DataFrame(user_profiles)
+    users_df.to_csv(os.path.join(raw_run_dir, "cdr_user_profiles.csv"), index=False)
+    pd.DataFrame(cell_towers).to_csv(os.path.join(raw_run_dir, "cdr_cell_towers.csv"), index=False)
 
     # Save community information (for analysis)
     community_data = []
@@ -100,34 +112,119 @@ def generate_dataset(output_path=RAW_DIR):
                     'community_id': f"{comm_type}_{i}",
                     'community_size': len(comm)
                 })
-    pd.DataFrame(community_data).to_csv(os.path.join(RAW_DIR, "cdr_communities.csv"), index=False)
+    pd.DataFrame(community_data).to_csv(os.path.join(raw_run_dir, "cdr_communities.csv"), index=False)
 
+    # Create and save dataset metadata
+    dataset_metadata = {
+        "dataset_info": {
+            "name": "Synthetic CDR Dataset",
+            "version": "1.0",
+            "description": "Synthetic Call Detail Records dataset for anomaly detection research",
+            "generation_date": f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
+            "run_folder": run_folder
+        },
+        "generation_parameters": {
+            "num_users": Config.NUM_USERS,
+            "num_cell_towers": Config.NUM_CELL_TOWERS,
+            "days": Config.DAYS,
+            "anomaly_ratio": Config.ANOMALY_RATIO,
+            "time_period": {
+                "start_date": f'{calls_df['call_start_ts'].min().strftime("%Y-%m-%d %H:%M:%S")}',
+                "end_date": f'{calls_df['call_start_ts'].max().strftime("%Y-%m-%d %H:%M:%S")}'
+            }
+        },
+        "statistics": {
+            "total_calls": f'{len(calls_df)}',
+            "normal_calls": f'{len(calls_df[calls_df['is_anomaly'] == 0])}',
+            "anomalous_calls": f'{len(calls_df[calls_df['is_anomaly'] == 1])}',
+            "anomaly_ratio_actual": f'{len(calls_df[calls_df['is_anomaly'] == 1]) / len(calls_df)}',
+            "anomaly_distribution": f'{f'{anomaly_distribution}'}',
+            "unique_callers": f'{calls_df['caller_id'].nunique()}',
+            "unique_callees": f'{calls_df['callee_id'].nunique()}',
+            "avg_call_duration": f'{calls_df['call_duration'].mean()}',
+            "max_call_duration": f'{calls_df['call_duration'].max()}',
+            "min_call_duration": f'{calls_df['call_duration'].min()}'
+        },
+        "files_in_dataset": {
+            "cdr_call_records.csv": f"{len(calls_df)} call records",
+            "cdr_user_profiles.csv": f"{len(users_df)} user profiles",
+            "cdr_cell_towers.csv": f"{len(cell_towers)} cell towers",
+            "cdr_communities.csv": f"{len(community_data)} community assignments",
+            "cdr_dataset_analysis.png": "Summary visualization"
+        }
+    }
+    # Save metadata as JSON
+    metadata_file = os.path.join(raw_run_dir, "dataset_metadata.json")
+    with open(metadata_file, 'w', encoding='utf-8') as f:
+        json.dump(dataset_metadata, f, indent=2, ensure_ascii=False)
 
-    plt.style.use('default')
-    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    # Also save a simplified README file
+    readme_content = f"""# Synthetic CDR Dataset
 
-    calls_df['hour'] = calls_df['call_start_ts'].dt.hour
-    axes[0, 0].bar(calls_df['hour'].value_counts().index, calls_df['hour'].value_counts().values, alpha=0.7, color='skyblue')
-    axes[0, 0].set_title('Call Distribution by Hour')
+## Dataset Information
+- **Generated on**: {dataset_metadata['dataset_info']['generation_date']}
+- **Run Folder**: {run_folder}
+- **Total Calls**: {len(calls_df):,}
+- **Normal Calls**: {len(calls_df[calls_df['is_anomaly'] == 0]):,}
+- **Anomalous Calls**: {len(calls_df[calls_df['is_anomaly'] == 1]):,}
+- **Anomaly Ratio**: {dataset_metadata['statistics']['anomaly_ratio_actual']}
 
-    duration_bins = [0, 30, 60, 180, 600, 1800, 3600, calls_df['call_duration'].max()]
-    duration_labels = ['<30s', '30-60s', '1-3m', '3-10m', '10-30m', '30-60m', '>1h']
-    duration_dist = pd.cut(calls_df['call_duration'], bins=duration_bins, labels=duration_labels).value_counts()
-    axes[0, 1].pie(duration_dist.values, labels=duration_dist.index, autopct='%1.1f%%')
-    axes[0, 1].set_title('Call Duration Distribution')
+## Files
+- `cdr_call_records.csv` - Main call records with timestamps and durations
+- `cdr_user_profiles.csv` - User demographic information
+- `cdr_cell_towers.csv` - Cell tower locations and information  
+- `cdr_communities.csv` - Social community assignments
+- `cdr_dataset_analysis.png` - Summary visualizations
+- `dataset_metadata.json` - Complete dataset metadata
 
-    anomaly_counts = calls_df[calls_df['is_anomaly'] == 1]['anomaly_type'].value_counts()
-    axes[1, 0].bar(anomaly_counts.index, anomaly_counts.values, color='salmon')
-    axes[1, 0].set_title('Anomaly Type Distribution')
+## Anomaly Types
+- Short Calls: {anomaly_distribution.get('short_call', 0)} calls
+- Long Calls: {anomaly_distribution.get('long_call', 0)} calls
+- Off-hour Calls: {anomaly_distribution.get('off_hour', 0)} calls  
+- Burst Calls: {anomaly_distribution.get('burst', 0)} calls
+"""
+    with open(os.path.join(raw_run_dir, "README.md"), 'w', encoding='utf-8') as f:
+        f.write(readme_content)
 
-    calls_df['date'] = calls_df['call_start_ts'].dt.date
-    daily_calls = calls_df.groupby('date').size()
-    axes[1, 1].plot(daily_calls.index, daily_calls.values, marker='o')
-    axes[1, 1].set_title('Calls per Day')
+    # Create summarise fig
+    create_summarise_fig(calls_df, raw_run_dir)
+    
+    '''5'''
 
-    plt.tight_layout()
-    fig.savefig(os.path.join(RAW_DIR, "cdr_dataset_analysis.png"), dpi=300, bbox_inches='tight')
-    plt.close(fig)
+    # Create aggregated features (export)
+    # User-level aggregation
+    user_features = []
+    
+    for user in users_df['user_id']:
+        user_calls = calls_df[(calls_df['caller_id'] == user) | (calls_df['callee_id'] == user)]
+        caller_calls = calls_df[calls_df['caller_id'] == user]
+        
+        features = {
+            'user_id': user,
+            'total_calls': len(user_calls),
+            'outgoing_calls': len(caller_calls),
+            'incoming_calls': len(user_calls) - len(caller_calls),
+            'avg_call_duration': user_calls['call_duration'].mean(),
+            'max_call_duration': user_calls['call_duration'].max(),
+            'unique_contacts': user_calls['caller_id'].nunique() + user_calls['callee_id'].nunique() - 1,
+            'night_calls_ratio': len(user_calls[user_calls['hour'].between(0, 5)]) / len(user_calls),
+            'weekend_calls_ratio': len(user_calls[user_calls['call_start_ts'].dt.dayofweek >= 5]) / len(user_calls),
+            'short_calls_ratio': len(user_calls[user_calls['call_duration'] < 10]) / len(user_calls),
+            'is_anomalous_user': int(user in calls_df[calls_df['is_anomaly'] == 1]['caller_id'].values)
+        }
+        
+        user_features.append(features)
+
+    # Save processed data with run folder name prefix
+    processed_filename = f"{run_folder}_cdr_features.csv"
+    pd.DataFrame(user_features).to_csv(os.path.join(PROCESSED_DIR, processed_filename), index=False)
+    print(f"Dataset generation completed successfully!")
+    print(50*'=')
+    print(f"Raw data will be saved to: {raw_run_dir}")
+    print(f"Processed features saved to: {os.path.join(PROCESSED_DIR, processed_filename)}")
+
+    return None
 
 if __name__ == "__main__":
-    generate_dataset()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    generate_dataset(timestamp)
