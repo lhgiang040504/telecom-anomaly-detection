@@ -1,4 +1,8 @@
 import random
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import os
 from faker import Faker
 fake = Faker('en_IN')
 
@@ -83,3 +87,44 @@ def generate_user_profiles(users, user_home_cells):
         user_profiles.append(profile)
     
     return user_profiles
+
+def create_summarise_fig(calls_df, raw_run_dir):
+    # Set the default style for the plots
+    plt.style.use('default')
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+
+    # Extract the hour from the call start timestamps
+    # Plot 1
+    calls_df['hour'] = calls_df['call_start_ts'].dt.hour
+    axes[0, 0].bar(calls_df['hour'].value_counts().index, calls_df['hour'].value_counts().values, alpha=0.7, color='skyblue')
+    axes[0, 0].set_title('Call Distribution by Hour')
+
+    # Define bins and labels for call duration distribution
+    # Plot 2
+    duration_bins = [0, 30, 60, 180, 600, 1800, 3600, calls_df['call_duration'].max()]
+    duration_labels = ['<30s', '30-60s', '1-3m', '3-10m', '10-30m', '30-60m', '>1h']
+    duration_dist = pd.cut(calls_df['call_duration'], bins=duration_bins, labels=duration_labels).value_counts()
+    axes[0, 1].pie(duration_dist.values, labels=duration_dist.index, autopct='%1.1f%%')
+    axes[0, 1].set_title('Call Duration Distribution')
+    # Plot 3
+    anomaly_counts = calls_df[calls_df['is_anomaly'] == 1]['anomaly_type'].value_counts()
+    axes[1, 0].bar(anomaly_counts.index, anomaly_counts.values, color='salmon')
+    axes[1, 0].set_title('Anomaly Type Distribution')
+
+    # Prepare data for daily call counts
+    # Plot 4
+    calls_df['date'] = calls_df['call_start_ts'].dt.date
+    daily_calls = calls_df.groupby('date').size()
+    axes[1, 1].plot(daily_calls.index, daily_calls.values, marker='o')
+    axes[1, 1].set_title('Calls per Day')
+
+    plt.tight_layout()
+    fig.savefig(os.path.join(raw_run_dir, "cdr_dataset_analysis.png"), dpi=300, bbox_inches='tight')
+    plt.close(fig)
+
+def convert_to_serializable(obj):
+    if isinstance(obj, (pd.Series, pd.DataFrame)):
+        return obj.tolist()  # Chuyển đổi thành danh sách
+    elif isinstance(obj, (np.integer, np.float)):
+        return int(obj) if isinstance(obj, np.integer) else float(obj)  # Chuyển đổi số kiểu numpy
+    return obj
