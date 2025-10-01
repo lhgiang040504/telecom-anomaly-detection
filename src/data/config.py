@@ -10,7 +10,7 @@ import numpy as np
 from faker import Faker
 
 # Global dataset parameters
-NUM_USERS = 1000
+NUM_USERS = 150000
 NUM_CELL_TOWERS = 50
 DAYS = 7
 ANOMALY_RATIO = 0.05  # 5% anomalous calls
@@ -53,6 +53,14 @@ class Config:
         'short_anomaly': {'mean': 3, 'std': 2, 'min': 1},
         'long_anomaly': {'mean': 3600, 'std': 1800, 'min': 1800}
     }
+
+    # Parallelism settings
+    # Enable or disable multiprocessing for generation
+    ENABLE_PARALLEL = True
+    # Number of worker processes; 0 or None means use os.cpu_count()
+    NUM_WORKERS = None
+    # Generate calls in chunks per worker to reduce overhead
+    CALLS_PER_CHUNK = 10000
 
 #config = Config()
 fake = Faker('en_IN')
