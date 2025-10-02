@@ -10,8 +10,8 @@ import numpy as np
 from faker import Faker
 
 # Global dataset parameters
-NUM_USERS = 150000
-NUM_CELL_TOWERS = 50
+NUM_USERS = 15000
+NUM_CELL_TOWERS = 20
 DAYS = 7
 ANOMALY_RATIO = 0.05  # 5% anomalous calls
 
