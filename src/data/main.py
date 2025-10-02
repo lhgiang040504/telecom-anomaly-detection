@@ -138,7 +138,7 @@ def generate_dataset(timestamp):
             "normal_calls": f'{len(calls_df[calls_df["is_anomaly"] == 0])}',
             "anomalous_calls": f'{len(calls_df[calls_df["is_anomaly"] == 1])}',
             "anomaly_ratio_actual": f'{len(calls_df[calls_df["is_anomaly"] == 1]) / len(calls_df)}',
-            "anomaly_distribution": f'{f'{anomaly_distribution}'}',
+            "anomaly_distribution": f'{anomaly_distribution}',
             "unique_callers": f'{calls_df["caller_id"].nunique()}',
             "unique_callees": f'{calls_df["callee_id"].nunique()}',
             "avg_call_duration": f'{calls_df["call_duration"].mean()}',
