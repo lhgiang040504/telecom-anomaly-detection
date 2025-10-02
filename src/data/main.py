@@ -129,21 +129,21 @@ def generate_dataset(timestamp):
             "days": Config.DAYS,
             "anomaly_ratio": Config.ANOMALY_RATIO,
             "time_period": {
-                "start_date": f'{calls_df['call_start_ts'].min().strftime("%Y-%m-%d %H:%M:%S")}',
-                "end_date": f'{calls_df['call_start_ts'].max().strftime("%Y-%m-%d %H:%M:%S")}'
+                "start_date": f'{calls_df["call_start_ts"].min().strftime("%Y-%m-%d %H:%M:%S")}',
+                "end_date": f'{calls_df["call_start_ts"].max().strftime("%Y-%m-%d %H:%M:%S")}'
             }
         },
         "statistics": {
             "total_calls": f'{len(calls_df)}',
-            "normal_calls": f'{len(calls_df[calls_df['is_anomaly'] == 0])}',
-            "anomalous_calls": f'{len(calls_df[calls_df['is_anomaly'] == 1])}',
-            "anomaly_ratio_actual": f'{len(calls_df[calls_df['is_anomaly'] == 1]) / len(calls_df)}',
+            "normal_calls": f'{len(calls_df[calls_df["is_anomaly"] == 0])}',
+            "anomalous_calls": f'{len(calls_df[calls_df["is_anomaly"] == 1])}',
+            "anomaly_ratio_actual": f'{len(calls_df[calls_df["is_anomaly"] == 1]) / len(calls_df)}',
             "anomaly_distribution": f'{f'{anomaly_distribution}'}',
-            "unique_callers": f'{calls_df['caller_id'].nunique()}',
-            "unique_callees": f'{calls_df['callee_id'].nunique()}',
-            "avg_call_duration": f'{calls_df['call_duration'].mean()}',
-            "max_call_duration": f'{calls_df['call_duration'].max()}',
-            "min_call_duration": f'{calls_df['call_duration'].min()}'
+            "unique_callers": f'{calls_df["caller_id"].nunique()}',
+            "unique_callees": f'{calls_df["callee_id"].nunique()}',
+            "avg_call_duration": f'{calls_df["call_duration"].mean()}',
+            "max_call_duration": f'{calls_df["call_duration"].max()}',
+            "min_call_duration": f'{calls_df["call_duration"].min()}'
         },
         "files_in_dataset": {
             "cdr_call_records.csv": f"{len(calls_df)} call records",
